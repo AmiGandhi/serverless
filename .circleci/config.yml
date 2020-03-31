@@ -1,0 +1,89 @@
+version: 2 # use CircleCI 2.0
+jobs: # a collection of steps
+
+  build:
+
+    docker: # run the steps with Docker
+      - image: circleci/openjdk:8-jdk
+
+    steps: # a collection of executable commands
+
+      - checkout # check out source code to working directory
+      - run:
+          name: Install packages
+          command: sudo apt-get update && sudo apt-get install wget zip unzip -y
+
+      - run:
+          name: Install awscli
+          command: |
+            echo "Installing AWS CLI"
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip
+            sudo ./aws/install
+            echo "AWS CLI installed successfully!"
+            aws --version
+
+      - run:
+          name: Build Artifact
+          command: |
+            echo "Building the artifact with Maven"
+            mvn package -Dspring.datasource.url=${DB_URL} -Dspring.datasource.username=${DB_USERNAME} -Dspring.datasource.password=${DB_PASSWORD} -DamazonProperties.bucketName=${CODEDEPLOY_BUCKETNAME} -Dspring.profiles.active=${SPRING_PROFILES_ACTIVE}
+            pwd
+            ls -al
+
+      - run:
+          name: Zip Artifact
+          command: |
+            echo "Hello the current build number is ${CIRCLE_BUILD_NUM}"
+            pwd
+            echo "Listing current directory content"
+            ls -al
+            echo "Making the lambda_artifact directory"
+            mkdir -p lambda_artifact
+            echo "Zipping all files"
+            zip -r csye6225-serverless.zip /home/circleci/serverless/target/ROOT.war
+            pwd
+            ls -al
+            echo "Moving zip to the lambda_artifact folder"
+            mv csye6225-serverless.zip lambda_artifact/
+            pwd
+            ls -al
+            cd lambda_artifact
+            pwd
+            ls -al
+            cd ..
+            pwd
+            ls -al
+
+      - run:
+          name: Upload Artifact to S3
+          command: |
+            echo "Uploading Artifact to S3 bucket ${CODEDEPLOY_BUCKETNAME}"
+            cd lambda_artifact
+            aws s3 cp csye6225-serverless.zip s3://${CODEDEPLOY_BUCKETNAME}
+            echo "Artifact uploaded to S3 successfully"
+            cd ..
+
+      - run:
+          name: Update zip in lambda function
+          command: |
+            allfunctions=$(aws lambda list-functions --query 'Functions[?Version == `$LATEST`].{FunctionName:FunctionName}')
+            if [  `echo $allfunctions | grep -w -c "$FUNCTION_NAME" ` -gt 0 ]
+            then
+              echo "Function $FUNCTION_NAME already exists. Updating it."
+              aws lambda update-function-code --region= ${AWS_REGION} \
+                                              --function-name ${FUNCTION_NAME} \
+                                              --s3-bucket ${CODEDEPLOY_BUCKETNAME} \
+                                              --zip-file fileb://./target/ROOT.war
+              echo "Function updated successfully."
+            fi
+
+workflows:
+  version: 2
+  build-deploy:
+    jobs:
+      - build:
+          filters:
+            branches:
+              only:
+                - master
