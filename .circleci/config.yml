@@ -14,6 +14,13 @@ jobs: # a collection of steps
           command: sudo apt-get update && sudo apt-get install wget zip unzip -y
 
       - run:
+          name: Install curl
+          command: |
+            echo "Installing curl"
+            sudo apt-get install curl
+            sudo curl --version
+
+      - run:
           name: Install awscli
           command: |
             echo "Installing AWS CLI"
@@ -24,10 +31,14 @@ jobs: # a collection of steps
             aws --version
 
       - run:
+          name: unit test
+          command: mvn package
+
+      - run:
           name: Build Artifact
           command: |
             echo "Building the artifact with Maven"
-            mvn package -Dspring.datasource.url=${DB_URL} -Dspring.datasource.username=${DB_USERNAME} -Dspring.datasource.password=${DB_PASSWORD} -DamazonProperties.bucketName=${CODEDEPLOY_BUCKETNAME} -Dspring.profiles.active=${SPRING_PROFILES_ACTIVE}
+            mvn clean install
             pwd
             ls -al
 
@@ -41,7 +52,7 @@ jobs: # a collection of steps
             echo "Making the lambda_artifact directory"
             mkdir -p lambda_artifact
             echo "Zipping all files"
-            zip -r csye6225-serverless.zip /home/circleci/serverless/target/ROOT.war
+            zip -r csye6225-serverless.zip /home/circleci/serverless/target/serverless.jar
             pwd
             ls -al
             echo "Moving zip to the lambda_artifact folder"
@@ -74,7 +85,7 @@ jobs: # a collection of steps
               aws lambda update-function-code --region= ${AWS_REGION} \
                                               --function-name ${FUNCTION_NAME} \
                                               --s3-bucket ${CODEDEPLOY_BUCKETNAME} \
-                                              --zip-file fileb://./target/ROOT.war
+                                              --s3-key serverless.jar
               echo "Function updated successfully."
             fi
 
