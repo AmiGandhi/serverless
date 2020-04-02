@@ -18,7 +18,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.time.Instant;
 import java.util.Calendar;
 import java.util.UUID;
 
@@ -48,9 +47,9 @@ public class DueBills implements RequestHandler<SNSEvent, Object> {
 
         String emailVal = "";
         context.getLogger().log("Extracting recipient email id to send emails");
-        String TO = jsonObject.get("Email").getAsString();
+        String TO = jsonObject.get("email").getAsString();
 
-        JsonArray listBillId =jsonObject.getAsJsonArray("dueBillIds");
+        JsonArray listBillId =jsonObject.getAsJsonArray("dueBillIdList");
         context.getLogger().log("iterating over bill list json pay");
         for(int i = 0; i<listBillId.size();i++){
             String temp = listBillId.get(i).toString();
@@ -73,7 +72,7 @@ public class DueBills implements RequestHandler<SNSEvent, Object> {
             }
             else{
                 long ttlDBValue = 0;
-                Item item = table.getItem("Email", TO);
+                Item item = table.getItem("email", TO);
 
                 if (item != null) {
                     context.getLogger().log("Checking for timestamp");
@@ -87,7 +86,7 @@ public class DueBills implements RequestHandler<SNSEvent, Object> {
                     table
                         .putItem(
                                 new PutItemSpec().withItem(new Item()
-                                        .withPrimaryKey("Email", TO)
+                                        .withPrimaryKey("email", TO)
                                         .withString("token", token)
                                         .withLong("ttl", totalTTL)));
 
