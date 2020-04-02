@@ -7,8 +7,6 @@
     <groupId>DueBills</groupId>
     <artifactId>DueBills</artifactId>
     <version>1.0-SNAPSHOT</version>
-    <name>DueBills</name>
-    <description>Serverless project for lambda</description>
 
     <properties>
         <java.version>1.8</java.version>
@@ -74,7 +72,7 @@
     </dependencies>
 
     <build>
-        <finalName>ROOT</finalName>
+        <finalName>DueBills</finalName>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
