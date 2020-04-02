@@ -1,0 +1,90 @@
+version: 2 # use CircleCI 2.0
+jobs: # a collection of steps
+
+  build:
+
+    docker: # run the steps with Docker
+      - image: circleci/openjdk:8-jdk
+
+    steps: # a collection of executable commands
+
+      - checkout # check out source code to working directory
+      - run:
+          name: Install packages
+          command: sudo apt-get update && sudo apt-get install wget zip unzip -y
+
+      - run:
+          name: Install curl
+          command: |
+            echo "Installing curl"
+            sudo apt-get install curl
+            sudo curl --version
+
+      - run:
+          name: Install awscli
+          command: |
+            echo "Installing AWS CLI"
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip
+            sudo ./aws/install
+            sudo apt-get update
+            sudo apt-get install less -y
+            echo "AWS CLI installed successfully!"
+            aws --version
+
+      - run:
+          name: unit test
+          command: mvn package
+
+      - run:
+          name: Build Artifact
+          command: |
+            echo "Building the artifact with Maven"
+            mvn clean install
+            pwd
+            ls -al
+
+      - run:
+          name: Create Artifact directory
+          command: |
+            echo "Hello the current build number is ${CIRCLE_BUILD_NUM}"
+            pwd
+            echo "Listing current directory content"
+            ls -al
+            echo "Making the lambda_artifact directory"
+            mkdir -p lambda_artifact
+            cd lambda_artifact
+            pwd
+            ls -al
+            touch 777 lambdaop.txt
+
+      - run:
+          name: Upload Artifact to S3
+          command: |
+            echo "Uploading Artifact to S3 bucket ${CODEDEPLOY_BUCKETNAME}"
+            aws s3 cp /home/circleci/serverless/target/serverless.jar s3://${CODEDEPLOY_BUCKETNAME} --region us-east-1
+            echo "Artifact uploaded to S3 successfully"
+
+      - run:
+          name: Update JAR in lambda function
+          command: |
+            allfunctions=$(aws lambda list-functions --query 'Functions[?Version == `$LATEST`].{FunctionName:FunctionName}')
+            if [  `echo $allfunctions | grep -w -c "$FUNCTION_NAME" ` -gt 0 ]
+            then
+              echo "Function $FUNCTION_NAME already exists. Updating it."
+              aws lambda update-function-code --region ${AWS_REGION} \
+                                              --function-name ${FUNCTION_NAME} \
+                                              --s3-bucket ${CODEDEPLOY_BUCKETNAME} \
+                                              --s3-key serverless.jar > lambdaop.txt
+              echo "Function updated successfully."
+            fi
+
+workflows:
+  version: 2
+  build-deploy:
+    jobs:
+      - build:
+          filters:
+            branches:
+              only:
+                - master
