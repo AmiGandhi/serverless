@@ -62,7 +62,7 @@ jobs: # a collection of steps
           name: Upload Artifact to S3
           command: |
             echo "Uploading Artifact to S3 bucket ${CODEDEPLOY_BUCKETNAME}"
-            aws s3 cp /home/circleci/serverless/target/serverless.jar s3://${CODEDEPLOY_BUCKETNAME} --region us-east-1
+            aws s3 cp /home/circleci/project/target/ROOT.jar s3://${CODEDEPLOY_BUCKETNAME} --region us-east-1
             echo "Artifact uploaded to S3 successfully"
 
       - run:
@@ -75,7 +75,7 @@ jobs: # a collection of steps
               aws lambda update-function-code --region ${AWS_REGION} \
                                               --function-name ${FUNCTION_NAME} \
                                               --s3-bucket ${CODEDEPLOY_BUCKETNAME} \
-                                              --s3-key serverless.jar > lambdaop.txt
+                                              --s3-key ROOT.jar > lambdaop.txt
               echo "Function updated successfully."
             fi
 
